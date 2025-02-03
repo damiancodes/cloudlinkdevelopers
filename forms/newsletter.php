@@ -1,39 +1,91 @@
 <?php
-  /**
-  * Requires the "PHP Email Form" library
-  * The "PHP Email Form" library is available only in the pro version of the template
-  * The library should be uploaded to: vendor/php-email-form/php-email-form.php
-  * For more info and help: https://bootstrapmade.com/php-email-form/
-  */
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-  // Replace contact@example.com with your real receiving email address
-  $receiving_email_address = 'contact@example.com';
+require_once 'config.php';
 
-  if( file_exists($php_email_form = '../assets/vendor/php-email-form/php-email-form.php' )) {
-    include( $php_email_form );
-  } else {
-    die( 'Unable to load the "PHP Email Form" Library!');
-  }
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST');
+header('Access-Control-Allow-Headers: Content-Type');
 
-  $contact = new PHP_Email_Form;
-  $contact->ajax = true;
-  
-  $contact->to = $receiving_email_address;
-  $contact->from_name = $_POST['email'];
-  $contact->from_email = $_POST['email'];
-  $contact->subject ="New Subscription: " . $_POST['email'];
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    die(json_encode([
+        'success' => false,
+        'errors' => ['Invalid request method']
+    ]));
+}
+  //Hii nimeeka juu ya rate limiting-security here and there, you can comment it out to test the form
+if (isset($_SESSION['last_newsletter_submission'])) {
+    $timeSinceLastSubmission = time() - $_SESSION['last_newsletter_submission'];
+    if ($timeSinceLastSubmission < 3600 / MAX_REQUESTS_PER_HOUR) {
+        die(json_encode([
+            'success' => false,
+            'errors' => [ERROR_MESSAGES['rate_limit']]
+        ]));
+    }
+}
 
-  // Uncomment below code if you want to use SMTP to send emails. You need to enter your correct SMTP credentials
-  /*
-  $contact->smtp = array(
-    'host' => 'example.com',
-    'username' => 'example',
-    'password' => 'pass',
-    'port' => '587'
-  );
-  */
+$email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
 
-  $contact->add_message( $_POST['email'], 'Email');
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    die(json_encode([
+        'success' => false,
+        'errors' => [ERROR_MESSAGES['invalid_email']]
+    ]));
+}
 
-  echo $contact->send();
-?>
+$domain = strtolower(substr(strrchr($email, "@"), 1));
+if (!empty(ALLOWED_DOMAINS) && !in_array($domain, ALLOWED_DOMAINS)) {
+    die(json_encode([
+        'success' => false,
+        'errors' => ['Invalid email domain']
+    ]));
+}
+
+$headers = [
+    'From' => RECEIVING_EMAIL,
+    'Reply-To' => $email,
+    'X-Mailer' => 'PHP/' . phpversion(),
+    'Content-Type' => 'text/plain; charset=utf-8',
+    'MIME-Version' => '1.0'
+];
+
+$emailContent = "New Newsletter Subscription\n\n";
+$emailContent .= "Email: $email\n";
+$emailContent .= "Date: " . date('Y-m-d H:i:s') . "\n";
+$emailContent .= "IP Address: " . $_SERVER['REMOTE_ADDR'] . "\n";
+
+try {
+    $mailSent = mail(
+        RECEIVING_EMAIL,
+        "New Newsletter Subscription",
+        $emailContent,
+        implode("\r\n", array_map(
+            function ($k, $v) {
+                return "$k: $v";
+            },
+            array_keys($headers),
+            $headers
+        ))
+    );
+
+    if ($mailSent) {
+        $_SESSION['last_newsletter_submission'] = time();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => SUCCESS_MESSAGES['newsletter']
+        ]);
+    } else {
+        throw new Exception('Failed to send email');
+    }
+} catch (Exception $e) {
+    error_log("Newsletter subscription error: " . $e->getMessage());
+    
+    echo json_encode([
+        'success' => false,
+        'errors' => [ERROR_MESSAGES['server_error']]
+    ]);
+}

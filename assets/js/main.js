@@ -10,6 +10,150 @@
   "use strict";
 
   /**
+   * Form validation functions
+   */
+  function validateForm(form) {
+    // Reset previous error states
+    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    form.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+    
+    let isValid = true;
+
+    // Validate Name
+    const nameInput = form.querySelector('input[name="name"]');
+    if (nameInput) {
+      const nameRegex = /^[A-Za-z\s]{2,50}$/;
+      if (!nameRegex.test(nameInput.value.trim())) {
+        showError(nameInput, 'Please enter a valid name (2-50 characters, letters only)');
+        isValid = false;
+      }
+    }
+
+    // Validate Email
+    const emailInput = form.querySelector('input[name="email"]');
+    if (emailInput) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(emailInput.value.trim())) {
+        showError(emailInput, 'Please enter a valid email address');
+        isValid = false;
+      }
+    }
+
+    // Validate Subject (only for contact form)
+    const subjectInput = form.querySelector('input[name="subject"]');
+    if (subjectInput && (subjectInput.value.trim().length < 3 || subjectInput.value.trim().length > 100)) {
+      showError(subjectInput, 'Subject must be between 3 and 100 characters');
+      isValid = false;
+    }
+
+    // Validate Message (only for contact form)
+    const messageInput = form.querySelector('textarea[name="message"]');
+    if (messageInput && (messageInput.value.trim().length < 10 || messageInput.value.trim().length > 2000)) {
+      showError(messageInput, 'Message must be between 10 and 2000 characters');
+      isValid = false;
+    }
+
+    return isValid;
+  }
+
+  function showError(element, message) {
+    element.classList.add('is-invalid');
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'invalid-feedback';
+    errorDiv.textContent = message;
+    element.parentNode.insertBefore(errorDiv, element.nextSibling);
+  }
+
+  /**
+   * Handle form submission with validation
+   */
+  async function handleFormSubmission(form, isNewsletter = false) {
+    if (!validateForm(form)) {
+      const errorElement = form.querySelector('.error-message');
+      if (errorElement) {
+        errorElement.style.display = 'block';
+        errorElement.textContent = 'Please check the form for errors.';
+      }
+      return;
+    }
+
+    const loadingElement = form.querySelector('.loading');
+    const errorElement = form.querySelector('.error-message');
+    const sentElement = form.querySelector('.sent-message');
+    
+    // Show loading
+    if (loadingElement) loadingElement.style.display = 'block';
+    if (errorElement) errorElement.style.display = 'none';
+    if (sentElement) sentElement.style.display = 'none';
+
+    try {
+      // Add request throttling
+      const lastSubmitTime = form.dataset.lastSubmit ? parseInt(form.dataset.lastSubmit) : 0;
+      const currentTime = Date.now();
+      
+      if (currentTime - lastSubmitTime < 5000) { // 5 seconds cooldown
+        throw new Error('Please wait a few seconds before submitting again.');
+      }
+      
+      form.dataset.lastSubmit = currentTime;
+
+      const response = await fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      // Hide loading
+      if (loadingElement) loadingElement.style.display = 'none';
+
+      if (result.success) {
+        if (sentElement) {
+          sentElement.style.display = 'block';
+          sentElement.textContent = result.message || (isNewsletter ? 
+            'Thank you for subscribing!' : 
+            'Your message has been sent. Thank you!');
+        }
+        form.reset();
+      } else {
+        throw new Error(Array.isArray(result.errors) ? result.errors.join(', ') : 'Form submission failed');
+      }
+    } catch (error) {
+      if (loadingElement) loadingElement.style.display = 'none';
+      if (errorElement) {
+        errorElement.style.display = 'block';
+        errorElement.textContent = error.message || 'Network error. Please check your connection and try again.';
+      }
+    }
+  }
+
+  /**
+   * Initialize form handlers
+   */
+  function initFormHandlers() {
+    const contactForm = document.querySelector('form.php-email-form');
+    const newsletterForm = document.querySelector('.footer-newsletter form.php-email-form');
+
+    if (contactForm) {
+      contactForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleFormSubmission(contactForm, false);
+      });
+    }
+
+    if (newsletterForm) {
+      newsletterForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleFormSubmission(newsletterForm, true);
+      });
+    }
+  }
+
+  /**
    * Apply .scrolled class to the body as the page is scrolled down
    */
   function toggleScrolled() {
@@ -32,7 +176,7 @@
     mobileNavToggleBtn.classList.toggle('bi-list');
     mobileNavToggleBtn.classList.toggle('bi-x');
   }
-  mobileNavToggleBtn.addEventListener('click', mobileNavToogle);
+  mobileNavToggleBtn?.addEventListener('click', mobileNavToogle);
 
   /**
    * Hide mobile nav on same-page/hash links
@@ -43,7 +187,6 @@
         mobileNavToogle();
       }
     });
-
   });
 
   /**
@@ -78,7 +221,8 @@
       window.scrollY > 100 ? scrollTop.classList.add('active') : scrollTop.classList.remove('active');
     }
   }
-  scrollTop.addEventListener('click', (e) => {
+  
+  scrollTop?.addEventListener('click', (e) => {
     e.preventDefault();
     window.scrollTo({
       top: 0,
@@ -142,9 +286,8 @@
         if (typeof aosInit === 'function') {
           aosInit();
         }
-      }, false);
+      });
     });
-
   });
 
   /**
@@ -201,9 +344,13 @@
       } else {
         navmenulink.classList.remove('active');
       }
-    })
+    });
   }
+
   window.addEventListener('load', navmenuScrollspy);
   document.addEventListener('scroll', navmenuScrollspy);
+
+  // Initialize form handlers when DOM is loaded
+  window.addEventListener('DOMContentLoaded', initFormHandlers);
 
 })();

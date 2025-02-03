@@ -1,41 +1,86 @@
 <?php
-  /**
-  * Requires the "PHP Email Form" library
-  * The "PHP Email Form" library is available only in the pro version of the template
-  * The library should be uploaded to: vendor/php-email-form/php-email-form.php
-  * For more info and help: https://bootstrapmade.com/php-email-form/
-  */
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-  // Replace contact@example.com with your real receiving email address
-  $receiving_email_address = 'contact@example.com';
+header('Content-Type: application/json');
 
-  if( file_exists($php_email_form = '../assets/vendor/php-email-form/php-email-form.php' )) {
-    include( $php_email_form );
-  } else {
-    die( 'Unable to load the "PHP Email Form" Library!');
-  }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    die(json_encode([
+        'success' => false,
+        'errors' => ['Invalid request method']
+    ]));
+}
 
-  $contact = new PHP_Email_Form;
-  $contact->ajax = true;
-  
-  $contact->to = $receiving_email_address;
-  $contact->from_name = $_POST['name'];
-  $contact->from_email = $_POST['email'];
-  $contact->subject = $_POST['subject'];
+$errors = [];
+$name = htmlspecialchars(strip_tags($_POST['name'] ?? ''));
+$email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+$subject = htmlspecialchars(strip_tags($_POST['subject'] ?? ''));
+$message = htmlspecialchars(strip_tags($_POST['message'] ?? ''));
 
-  // Uncomment below code if you want to use SMTP to send emails. You need to enter your correct SMTP credentials
-  /*
-  $contact->smtp = array(
-    'host' => 'example.com',
-    'username' => 'example',
-    'password' => 'pass',
-    'port' => '587'
-  );
-  */
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $errors[] = 'Invalid email format';
+}
 
-  $contact->add_message( $_POST['name'], 'From');
-  $contact->add_message( $_POST['email'], 'Email');
-  $contact->add_message( $_POST['message'], 'Message', 10);
+if (empty($name) || strlen($name) < 2 || strlen($name) > 50) {
+    $errors[] = 'Name must be between 2 and 50 characters';
+}
 
-  echo $contact->send();
-?>
+if (empty($subject) || strlen($subject) < 3 || strlen($subject) > 100) {
+    $errors[] = 'Subject must be between 3 and 100 characters';
+}
+
+if (empty($message) || strlen($message) < 10 || strlen($message) > 2000) {
+    $errors[] = 'Message must be between 10 and 2000 characters';
+}
+
+if (!empty($errors)) {
+    die(json_encode([
+        'success' => false,
+        'errors' => $errors
+    ]));
+}
+
+$headers = [
+    'From' => $email,
+    'Reply-To' => $email,
+    'X-Mailer' => 'PHP/' . phpversion(),
+    'Content-Type' => 'text/plain; charset=utf-8',
+    'MIME-Version' => '1.0'
+];
+
+$emailContent = "New Contact Form Submission\n\n";
+$emailContent .= "Name: $name\n";
+$emailContent .= "Email: $email\n";
+$emailContent .= "Subject: $subject\n\n";
+$emailContent .= "Message:\n$message\n";
+
+try {
+    $mailSent = mail(
+        'developerscloudlink@gmail.com',
+        "New Contact Form Message: $subject",
+        $emailContent,
+        implode("\r\n", array_map(
+            function ($k, $v) {
+                return "$k: $v";
+            },
+            array_keys($headers),
+            $headers
+        ))
+    );
+
+    if ($mailSent) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Message sent successfully!'
+        ]);
+    } else {
+        throw new Exception('Failed to send email');
+    }
+} catch (Exception $e) {
+    error_log("Contact form error: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'errors' => ['An error occurred while sending the message. Please try again later.']
+    ]);
+}
