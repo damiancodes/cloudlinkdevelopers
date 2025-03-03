@@ -812,40 +812,57 @@
           </div>
 
           <div class="col-lg-7">
-            <form action="forms/contact.php" method="post" class="php-email-form" data-aos="fade-up"
-              data-aos-delay="200">
-              <div class="row gy-4">
+           <!-- Contact form -->
+<form action="forms/contact.php" method="post" class="php-email-form">
+  <!-- Add CSRF token -->
+  <input type="hidden" name="csrf_token" value="<?php echo $form->getCsrfToken(); ?>">
+  
+  <div class="row gy-4">
+      <div class="col-md-6">
+          <label for="name">Your Name</label>
+          <input type="text" name="name" class="form-control" id="name" 
+                 required minlength="2" maxlength="50"
+                 pattern="[A-Za-z\s]+" title="Please enter a valid name">
+      </div>
 
-                <div class="col-md-6">
-                  <label for="name-field" class="pb-2">Your Name</label>
-                  <input type="text" name="name" id="name-field" class="form-control" required="">
-                </div>
+      <div class="col-md-6">
+          <label for="email">Your Email</label>
+          <input type="email" class="form-control" name="email" id="email" 
+                 required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$">
+      </div>
 
-                <div class="col-md-6">
-                  <label for="email-field" class="pb-2">Your Email</label>
-                  <input type="email" class="form-control" name="email" id="email-field" required="">
-                </div>
+      <div class="col-md-12">
+          <label for="subject">Subject</label>
+          <input type="text" class="form-control" name="subject" id="subject" 
+                 required minlength="3" maxlength="100">
+      </div>
 
-                <div class="col-md-12">
-                  <label for="subject-field" class="pb-2">Subject</label>
-                  <input type="text" class="form-control" name="subject" id="subject-field" required="">
-                </div>
+      <div class="col-md-12">
+          <label for="message">Message</label>
+          <textarea class="form-control" name="message" id="message" rows="10" 
+                    required minlength="10" maxlength="2000"></textarea>
+      </div>
 
-                <div class="col-md-12">
-                  <label for="message-field" class="pb-2">Message</label>
-                  <textarea class="form-control" name="message" rows="10" id="message-field" required=""></textarea>
-                </div>
+      <div class="col-md-12 text-center">
+          <div class="loading">Loading</div>
+          <div class="error-message"></div>
+          <div class="sent-message">Your message has been sent. Thank you!</div>
+          <button type="submit">Send Message</button>
+      </div>
+  </div>
+</form>
 
-                <div class="col-md-12 text-center">
-                  <div class="loading">Loading</div>
-                  <div class="error-message"></div>
-                  <div class="sent-message">Your message has been sent. Thank you!</div>
-
-                  <button type="submit">Send Message</button>
-                </div>
-
-              </div>
-            </form>
+<!-- Newsletter form -->
+<form action="forms/newsletter.php" method="post" class="php-email-form">
+  <input type="hidden" name="csrf_token" value="<?php echo $form->getCsrfToken(); ?>">
+  <div class="newsletter-form">
+      <input type="email" name="email" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$">
+      <input type="submit" value="Subscribe">
+  </div>
+  <div class="loading">Loading</div>
+  <div class="error-message"></div>
+  <div class="sent-message">Your subscription request has been sent. Thank you!</div>
+</form>
           </div><!-- End Contact Form -->
 
         </div>
@@ -865,12 +882,14 @@
             <h4>Join Our Newsletter</h4>
             <p>Subscribe to our newsletter and receive the latest news about our products and services!</p>
             <form action="forms/newsletter.php" method="post" class="php-email-form">
-              <div class="newsletter-form"><input type="email" name="email"><input type="submit" value="Subscribe">
+              <div class="newsletter-form">
+                  <input type="email" name="email" required>
+                  <input type="submit" value="Subscribe">
               </div>
               <div class="loading">Loading</div>
               <div class="error-message"></div>
               <div class="sent-message">Your subscription request has been sent. Thank you!</div>
-            </form>
+          </form>
           </div>
         </div>
       </div>
@@ -934,7 +953,7 @@
         <!-- Purchase the pro version with working PHP/AJAX contact form: [buy-url] -->
         Designed by <a href="#">CloudLink Developers</a> Distributed by <a
           href=“cloudlinkdevelopers.com">Cloudlink Developers
-      </div>
+         </div>
     </div>
 
   </footer>
